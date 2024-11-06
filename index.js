@@ -107,7 +107,7 @@ function escapeMarkdown(text) {
 }
 
 /**
- * Replaces a YouTube macro with the corresponding video information.
+ * Replaces a YouTube macro with the corresponding video information or transcript.
  * @param {string} _match Regular expression match
  * @param {string} macro Macro name
  * @param {string} url Video URL
@@ -124,11 +124,24 @@ async function macroReplacer(_match, macro, url) {
 
     console.log('[ST-YT] Found YouTube macro:', macro, url);
 
+    const videoId = getVideoId(url);
+
     if (macro === 'id') {
-        return getVideoId(url);
+        return videoId;
     }
 
-    const info = await getVideoInfo(getVideoId(url));
+    if (macro === 'transcript') {
+        try {
+            const response = await fetch(`/api/plugins/youtube/transcript/${encodeURIComponent(url)}`);
+            const data = await response.text();
+            return data;
+        } catch (error) {
+            console.error('[ST-YT] Failed to fetch transcript:', error);
+            return 'Error fetching transcript';
+        }
+    }
+
+    const info = await getVideoInfo(videoId);
 
     if (!info) {
         console.log('[ST-YT] No video info found');
@@ -156,7 +169,6 @@ async function macroReplacer(_match, macro, url) {
             return info.view_count;
         case 'date':
         case 'uploaded':
-            // 20210101 -> 2021-01-01
             return info.upload_date.replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
         case 'description':
             return info.description;
